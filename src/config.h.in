@@ -1,3 +1,6 @@
 // substituted by make process
 #define PLUGIN_NAME    "PROJECT_NAME"
 #define PLUGIN_VERSION "PROJECT_VERSION"
+
+#define PLUGIN_AUTHORS "Patrick Winters, Lenny Colton, Jan Fries, Hendrik Peter, Sven Czarnian"
+#define PLUGIN_LICENCE "GNU GPLv3"
