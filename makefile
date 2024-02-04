@@ -13,8 +13,8 @@ LDFLAGS = \
 	/libpath:/opt/xwin/sdk/lib/ucrt/x86 /libpath:/opt/xwin/sdk/lib/um/x86
 LIBRARIES = $(wildcard lib/*) $(wildcard /opt/curl/lib/*)
 
-SOURCES =
-HEADERS =
+SOURCES = src/export.cpp src/plugin.cpp
+HEADERS = src/plugin.hpp
 OBJECTS = $(patsubst src/%.cpp,out/%.o,$(SOURCES))
 DEPENDENTS = $(HEADERS) out/config.h
 
