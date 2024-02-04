@@ -1,0 +1,14 @@
+{
+	"C_Cpp.default.systemIncludePath": [
+		"inc/",
+		"out/",
+		"/opt/curl/include",
+		"/opt/xwin/crt/include",
+		"/opt/xwin/sdk/include/shared",
+		"/opt/xwin/sdk/include/ucrt",
+		"/opt/xwin/sdk/include/um"
+	],
+	"C_Cpp.default.cppStandard": "c++17",
+	"C_Cpp.default.cStandard": "c17",
+	"C_Cpp.default.compilerPath": "/usr/bin/clang-cl-16"
+}

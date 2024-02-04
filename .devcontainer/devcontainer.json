@@ -1,0 +1,14 @@
+{
+	"name": "vFPC",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"capAdd": ["SYS_PTRACE"],
+	"securityOpt": ["seccomp=unconfined"],
+	"customizations": {
+		"vscode": {
+			"extensions": ["ms-vscode.cpptools"]
+		}
+	},
+	"remoteUser": "vscode"
+}
