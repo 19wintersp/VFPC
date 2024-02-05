@@ -4,3 +4,4 @@
 
 #define PLUGIN_AUTHORS "Patrick Winters, Lenny Colton, Jan Fries, Hendrik Peter, Sven Czarnian"
 #define PLUGIN_LICENCE "GNU GPLv3"
+#define PLUGIN_WEB     "https://github.com/19wintersp/VFPC#readme"
