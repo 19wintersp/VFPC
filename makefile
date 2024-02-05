@@ -15,7 +15,7 @@ LDFLAGS = \
 LIBRARIES = $(wildcard lib/*) $(wildcard /opt/curl/lib/*)
 
 SOURCES = src/export.cpp src/plugin.cpp
-HEADERS = src/plugin.hpp
+HEADERS = src/jsonify.hpp src/plugin.hpp
 OBJECTS = $(patsubst src/%.cpp,out/%.o,$(SOURCES))
 DEPENDENTS = $(HEADERS) out/config.h
 
