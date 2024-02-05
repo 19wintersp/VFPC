@@ -5,7 +5,8 @@ CC = clang-cl-16
 LD = lld-link-16
 
 CFLAGS = \
-	-Wno-microsoft --target=i686-pc-windows-msvc /EHa /I inc /I out /I /opt/curl/include \
+	-Wno-microsoft --target=i686-pc-windows-msvc /std:c++17 /EHa \
+	/I inc /I out /I /opt/curl/include \
 	/imsvc /opt/xwin/crt/include /imsvc /opt/xwin/sdk/include/shared \
 	/imsvc /opt/xwin/sdk/include/ucrt /imsvc /opt/xwin/sdk/include/um
 LDFLAGS = \
