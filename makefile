@@ -14,8 +14,8 @@ LDFLAGS = \
 	/libpath:/opt/xwin/sdk/lib/ucrt/x86 /libpath:/opt/xwin/sdk/lib/um/x86
 LIBRARIES = $(wildcard lib/*) $(wildcard /opt/curl/lib/*)
 
-SOURCES = src/export.cpp src/plugin.cpp
-HEADERS = src/jsonify.hpp src/plugin.hpp
+SOURCES = src/export.cpp src/plugin.cpp src/source.cpp
+HEADERS = src/jsonify.hpp src/plugin.hpp src/source.hpp
 OBJECTS = $(patsubst src/%.cpp,out/%.o,$(SOURCES))
 DEPENDENTS = $(HEADERS) out/config.h
 
