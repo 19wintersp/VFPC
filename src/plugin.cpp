@@ -44,7 +44,7 @@ Plugin::Plugin(void) :
 	logger->debug("plugin initialised");
 }
 
-Plugin::~Plugin(void) {
+Plugin::~Plugin() {
 	logger->info("plugin unloaded");
 }
 

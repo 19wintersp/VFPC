@@ -16,7 +16,7 @@ private:
 
 public:
 	Plugin(void);
-	~Plugin(void);
+	~Plugin();
 
 	bool OnCompileCommand(const char *) override;
 	void OnGetTagItem(EuroScope::CFlightPlan, EuroScope::CRadarTarget, int, int, char[16], int *, COLORREF *, double *) override;
