@@ -16,13 +16,13 @@ LIBRARIES = $(wildcard lib/*) $(wildcard /opt/curl/lib/*)
 
 SOURCES = src/export.cpp src/plugin.cpp src/source.cpp
 HEADERS = src/jsonify.hpp src/plugin.hpp src/source.hpp
-OBJECTS = $(patsubst src/%.cpp,out/%.o,$(SOURCES))
+OBJECTS = $(patsubst src/%.cpp,out/%.obj,$(SOURCES))
 DEPENDENTS = $(HEADERS) out/config.h
 
 out/$(PROJECT_NAME).dll: $(OBJECTS)
 	$(LD) /dll /out:$@ $(LDFLAGS) $(LIBRARIES) $^
 
-out/%.o: src/%.cpp $(DEPENDENTS)
+out/%.obj: src/%.cpp $(DEPENDENTS)
 	$(CC) $(CFLAGS) /c /Fo$@ $<
 
 out/config.h: src/config.h.in
