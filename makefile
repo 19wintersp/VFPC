@@ -29,3 +29,8 @@ out/config.h: src/config.h.in
 	cp $< $@
 	sed -i -e "s/PROJECT_NAME/$(PROJECT_NAME)/g" $@
 	sed -i -e "s/PROJECT_VERSION/$(PROJECT_VERSION)/g" $@
+
+clean:
+	rm out/*
+
+.PHONY: clean
