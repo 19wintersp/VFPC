@@ -24,4 +24,5 @@ void __declspec(dllexport) EuroScopePlugInInit(EuroScope::CPlugIn **ptr) {
 
 void __declspec(dllexport) EuroScopePlugInExit(void) {
 	delete plugin;
+	spdlog::shutdown();
 }
