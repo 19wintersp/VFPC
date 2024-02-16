@@ -4,14 +4,11 @@
 
 #include <windows.h>
 #include <EuroScopePlugIn.hpp>
-#include <spdlog/logger.h>
 
 namespace EuroScope = EuroScopePlugIn;
 
 class Plugin : public EuroScope::CPlugIn {
 private:
-	std::shared_ptr<spdlog::logger> logger;
-
 	void display_message(const char *, const char *, bool = false);
 
 public:
