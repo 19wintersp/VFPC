@@ -1,5 +1,6 @@
 #include <chrono>
 
+#include <curl/curl.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/daily_file_sink.h>
 
@@ -19,10 +20,18 @@ void __declspec(dllexport) EuroScopePlugInInit(EuroScope::CPlugIn **ptr) {
 	spdlog::set_level(spdlog::level::info);
 #endif
 
+	if (curl_global_init(CURL_GLOBAL_DEFAULT)) {
+		spdlog::error("libcurl init failed");
+		return; // ?
+	}
+
 	*ptr = plugin = new Plugin;
 }
 
 void __declspec(dllexport) EuroScopePlugInExit(void) {
 	delete plugin;
+
+	curl_global_cleanup();
+
 	spdlog::shutdown();
 }
