@@ -14,6 +14,8 @@ const int TAG_FUNC_CHECK_MENU = 100;
 const int TAG_FUNC_CHECK_SHOW = 101;
 const int TAG_FUNC_CHECK_TOGGLE = 102;
 
+const int UPDATE_INTERVAL = 30;
+
 #define COMMAND_PREFIX ".vfpc"
 
 void log_caught_exception(const char *ctx);
@@ -65,8 +67,9 @@ bool Plugin::OnCompileCommand(const char *command) {
 	if (!command || (command = next_token(command, token), !strcmp(token, "help"))) {
 		display_message("", "Available commands:");
 		display_message("", "  " COMMAND_PREFIX " help          - Display this help text");
-		display_message("", "  " COMMAND_PREFIX " check [CS]... - Check the selected flight plan or specified callsign(s)");
-		display_message("", "  " COMMAND_PREFIX " source [URL]  - Re/set the data server address (or local data file path)");
+		display_message("", "  " COMMAND_PREFIX " check [CS]... - Check the selected or specified flight plan(s)");
+		display_message("", "  " COMMAND_PREFIX " source [URL]  - Re/set the data server address");
+		display_message("", "  " COMMAND_PREFIX " source <FILE> - Load airport data from a local file into the cache");
 		display_message("", "  " COMMAND_PREFIX " reload        - Invalidate the airport data and version caches");
 		display_message("", "  " COMMAND_PREFIX " debug         - Set the log level to TRACE");
 		display_message("", "See <" PLUGIN_WEB "> for more information.");
@@ -79,9 +82,10 @@ bool Plugin::OnCompileCommand(const char *command) {
 			spdlog::set_level(spdlog::level::trace);
 			spdlog::trace("log tracing enabled");
 		} else if (!strcmp(token, "source")) {
-			// set_source(command)
+			source.set(command);
 		} else if (!strcmp(token, "reload") && !command) {
-			// invalidate()
+			source.invalidate();
+			source.update();
 		} else if (!strcmp(token, "check")) {
 			if (!command) {
 				// check(GetSelectedFlightPlan())
@@ -104,7 +108,12 @@ void Plugin::OnGetTagItem(EuroScope::CFlightPlan, EuroScope::CRadarTarget, int, 
 
 void Plugin::OnFunctionCall(int, const char *, POINT, RECT) {}
 
-void Plugin::OnTimer(int) {}
+void Plugin::OnTimer(int time) {
+	if (last_update < 0 || (time - last_update) > UPDATE_INTERVAL) {
+		source.update();
+		last_update = time;
+	}
+}
 
 void log_caught_exception(const char *ctx) {
 	const char *err = "(unknown)";
