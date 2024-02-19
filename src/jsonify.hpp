@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <memory>
 #include <optional>
 #include <variant>
 #include <vector>
@@ -22,6 +23,14 @@ namespace nlohmann {
 
 		static void from_json(const nlohmann::json &j, std::variant<Ts...> &data) {
 			(variant_from_json<Ts>(j, data), ...);
+		}
+	};
+
+	template<typename T>
+	struct adl_serializer<std::unique_ptr<T>> {
+		static void from_json(const nlohmann::json &j, std::unique_ptr<T> &data) {
+			T &&inner = j.get<T>();
+			data = std::make_unique<T>(std::move(inner));
 		}
 	};
 
