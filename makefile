@@ -17,7 +17,7 @@ LIBRARIES = $(wildcard lib/*) $(wildcard /opt/curl/lib/*)
 SOURCES = src/export.cpp src/plugin.cpp src/source.cpp
 HEADERS = src/jsonify.hpp src/plugin.hpp src/source.hpp
 OBJECTS = $(patsubst src/%.cpp,out/%.obj,$(SOURCES))
-DEPENDENTS = $(HEADERS) out/config.h
+DEPENDENTS = $(HEADERS) out/config.h out/ca-bundle.h
 
 out/$(PROJECT_NAME).dll: $(OBJECTS)
 	$(LD) /dll /out:$@ $(LDFLAGS) $(LIBRARIES) $^
@@ -29,6 +29,9 @@ out/config.h: src/config.h.in
 	cp $< $@
 	sed -i -e "s/PROJECT_NAME/$(PROJECT_NAME)/g" $@
 	sed -i -e "s/PROJECT_VERSION/$(PROJECT_VERSION)/g" $@
+
+out/ca-bundle.h: /opt/curl/bin/curl-ca-bundle.crt
+	bash tool/gen-ca-bundle.sh < $< > $@
 
 clean:
 	rm out/*
