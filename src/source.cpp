@@ -15,6 +15,7 @@
 #include <ca-bundle.h>
 #include <config.h>
 #include "jsonify.hpp"
+#include "plugin.hpp"
 #include "source.hpp"
 
 #define DEFAULT_SOURCE "https://vfpc.tomjmills.co.uk/"
@@ -163,7 +164,7 @@ void Source::fetch_update(std::promise<void> promise) {
 	try {
 		version = fetch(url.c_str());
 	} catch (...) {
-		spdlog::warn("update failed"); // TODO: fixme
+		Plugin::report_exception("update call");
 		return;
 	}
 
@@ -221,7 +222,7 @@ void Source::fetch_airport(std::promise<void> promise, const char *c_icao) {
 	try {
 		airports = fetch(url.c_str());
 	} catch (...) {
-		spdlog::warn("airport request failed"); // TODO: fixme
+		Plugin::report_exception("airport request call");
 
 		std::lock_guard<std::mutex> _lock2(cache_lock);
 

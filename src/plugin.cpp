@@ -94,11 +94,10 @@ bool Plugin::OnCompileCommand(const char *command) {
 				// check(GetFlightPlanByCallsign(token))
 			} while (command);
 		} else {
-			display_message("", "Invalid command; run '" COMMAND_PREFIX " help' for help");
+			display_message("", "Invalid command; run '" COMMAND_PREFIX " help' for help", true);
 		}
 	} catch (...) {
-		log_caught_exception("user command");
-		display_message("", "Error in executing command");
+		Plugin::report_exception("user command execution");
 	}
 
 	return true;
@@ -113,9 +112,24 @@ void Plugin::OnTimer(int time) {
 		source.update();
 		last_update = time;
 	}
+
+	// report accumulated errors, but don't bother waiting for the lock if held
+	if (errors_lock.try_lock()) {
+		std::vector<std::string> errors_taken;
+		std::swap(errors_taken, errors);
+
+		errors_lock.unlock();
+
+		for (std::string &ctx : errors_taken) {
+			ctx.insert(0, "Error in ");
+			ctx.append(" (check log for details)");
+
+			display_message("", ctx.c_str(), true);
+		}
+	}
 }
 
-void log_caught_exception(const char *ctx) {
+void Plugin::report_exception(const char *ctx) {
 	const char *err = "(unknown)";
 
 	try {
@@ -128,4 +142,8 @@ void log_caught_exception(const char *ctx) {
 
 	if (ctx) spdlog::warn("caught exception in {}: {}", ctx, err);
 	else spdlog::warn("caught exception: {}", err);
+
+	std::lock_guard<std::mutex> _lock(errors_lock);
+
+	errors.push_back(std::string(ctx ? ctx : ""));
 }
