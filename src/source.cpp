@@ -223,8 +223,6 @@ void Source::fetch_airport(std::promise<void> promise, const char *c_icao) {
 	try {
 		airports = fetch(url.c_str());
 	} catch (...) {
-		Plugin::report_exception("airport request call");
-
 		std::lock_guard<std::mutex> _lock2(cache_lock);
 
 		pending.erase(icao);
@@ -232,11 +230,14 @@ void Source::fetch_airport(std::promise<void> promise, const char *c_icao) {
 		try {
 			throw;
 		} catch (int code) {
-			if (code == 404) {
+			// server returns 400 for non EG**, and 404 for unknown EG**
+			if (code == 400 || code == 404) {
 				missing.insert(icao);
 				return;
 			}
 		} catch (...) {}
+
+		Plugin::report_exception("airport request call");
 
 		error.insert(icao);
 
