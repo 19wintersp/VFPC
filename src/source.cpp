@@ -47,7 +47,7 @@ namespace api {
 	});
 
 	NLOHMANN_JSONIFY_DESERIALIZE_STRUCT(Alert, ban, warn, note, srd);
-	NLOHMANN_JSONIFY_DESERIALIZE_STRUCT(RestrictionTime, date, time);
+	NLOHMANN_JSONIFY_DESERIALIZE_STRUCT(DateTime, date, time);
 	NLOHMANN_JSONIFY_DESERIALIZE_STRUCT(Restriction, sidlevel, banned, alt, suffix, types, start, end);
 	NLOHMANN_JSONIFY_DESERIALIZE_STRUCT(Constraint, min, max, dir, dests, nodests, points, nopoints, route, noroute, alerts, restrictions);
 
@@ -170,12 +170,13 @@ void Source::fetch_update(std::promise<void> promise) {
 
 	std::lock_guard<std::mutex> _lock2(update_lock);
 
-	datetime_value = std::make_pair(version.day, version.time);
+	datetime_value.date = version.day;
+	datetime_value.time = version.time;
 
 	spdlog::trace("update complete");
 }
 
-std::pair<uint8_t, api::Time> Source::datetime() {
+api::DateTime Source::datetime() {
 	std::lock_guard<std::mutex> _lock(update_lock);
 	return datetime_value;
 }

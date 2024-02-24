@@ -16,6 +16,15 @@
 namespace api {
 	struct Time {
 		uint8_t hour, minute;
+
+		uint16_t ord() const {
+			return (uint16_t) hour * 60 + (uint16_t) minute;
+		}
+	};
+
+	struct DateTime {
+		std::optional<uint8_t> date;
+		std::optional<Time> time;
 	};
 
 	enum class Direction {
@@ -29,15 +38,10 @@ namespace api {
 		std::optional<uint32_t> srd;
 	};
 
-	struct RestrictionTime {
-		std::optional<uint8_t> date;
-		std::optional<Time> time;
-	};
-
 	struct Restriction {
 		bool sidlevel, banned;
 		std::vector<std::string> alt, suffix, types;
-		std::optional<RestrictionTime> start, end;
+		std::optional<DateTime> start, end;
 	};
 
 	struct Constraint {
@@ -62,7 +66,7 @@ private:
 	std::map<std::string, std::map<std::string, std::shared_ptr<api::Sid>>> sids;
 	std::string web_source;
 
-	std::pair<uint8_t, api::Time> datetime_value;
+	api::DateTime datetime_value;
 
 	std::atomic_uint cache_version;
 	std::mutex cache_lock, update_lock;
@@ -86,7 +90,7 @@ public:
 	void invalidate();
 	void update();
 
-	std::pair<uint8_t, api::Time> datetime();
+	api::DateTime datetime();
 
 	// this creates a TOCTOU issue, but invalidate is called from the same thread
 	// as airport(...)/sid(...) so it's not an issue in practice. if necessary to
