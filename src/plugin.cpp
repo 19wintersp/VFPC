@@ -41,6 +41,7 @@ Plugin::Plugin(void) :
 	RegisterTagItemType("Flight plan validity", TAG_ITEM_CHECK);
 	RegisterTagItemType("Abbreviated flight plan validity", TAG_ITEM_CHECK_SHORT);
 	RegisterTagItemFunction("Open options menu", TAG_FUNC_CHECK_MENU);
+	RegisterTagItemFunction("Show check details", TAG_FUNC_CHECK_SHOW);
 
 	display_message("", PLUGIN_NAME " version " PLUGIN_VERSION " loaded");
 
@@ -200,7 +201,44 @@ void Plugin::OnGetTagItem(
 	}
 }
 
-void Plugin::OnFunctionCall(int, const char *, POINT, RECT) {}
+void Plugin::OnFunctionCall(
+	int func_code,
+	const char *_item_value,
+	POINT _item_position,
+	RECT item_area) {
+	try {
+		switch (func_code) {
+			case TAG_FUNC_CHECK_MENU:
+				OpenPopupList(item_area, "Options", 1);
+				AddPopupListElement("Show checks", "", TAG_FUNC_CHECK_SHOW);
+				break;
+
+			case TAG_FUNC_CHECK_SHOW: {
+				auto fp = FlightPlanSelectASEL();
+				if (fp.IsValid()) {
+					std::string log;
+
+					checker.check(fp, &log);
+					display_message(fp.GetCallsign(), log.c_str(), true);
+				} else {
+					spdlog::warn("tag function called without ASEL flight plan");
+				}
+
+				break;
+			}
+
+			case TAG_FUNC_CHECK_TOGGLE:
+				spdlog::info("toggle called");
+				display_message("", "This function is not available");
+				break;
+
+			default:
+				break;
+		}
+	} catch (...) {
+		Plugin::report_exception("function call");
+	}
+}
 
 void Plugin::OnTimer(int time) {
 	if (last_update < 0 || (time - last_update) > UPDATE_INTERVAL) {
