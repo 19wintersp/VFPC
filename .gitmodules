@@ -1,0 +1,9 @@
+[submodule "json"]
+	path = ext/json
+	url = https://github.com/nlohmann/json
+	shallow = true
+
+[submodule "spdlog"]
+	path = ext/spdlog
+	url = https://github.com/gabime/spdlog
+	shallow = true
