@@ -72,8 +72,8 @@ private:
 	std::mutex cache_lock, update_lock;
 	std::shared_mutex this_lock;
 
-	void Source::fetch_update(std::promise<void> promise);
-	void Source::fetch_airport(std::promise<void> promise, const char *icao);
+	void fetch_update(std::promise<void> promise);
+	void fetch_airport(std::promise<void> promise, const char *icao);
 
 public:
 	enum CacheStatus {
