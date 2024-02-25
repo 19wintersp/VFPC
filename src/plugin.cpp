@@ -205,7 +205,8 @@ void Plugin::OnFunctionCall(
 	int func_code,
 	const char *_item_value,
 	POINT _item_position,
-	RECT item_area) {
+	RECT item_area
+) {
 	try {
 		switch (func_code) {
 			case TAG_FUNC_CHECK_MENU:
