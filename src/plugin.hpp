@@ -8,6 +8,7 @@
 #include <windows.h>
 #include <EuroScopePlugIn.hpp>
 
+#include "check.hpp"
 #include "source.hpp"
 
 namespace EuroScope = EuroScopePlugIn;
@@ -15,6 +16,7 @@ namespace EuroScope = EuroScopePlugIn;
 class Plugin : public EuroScope::CPlugIn {
 private:
 	Source source;
+	Checker checker;
 	int last_update = -1;
 
 	inline static std::mutex errors_lock;

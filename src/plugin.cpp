@@ -14,6 +14,11 @@ const int TAG_FUNC_CHECK_MENU = 100;
 const int TAG_FUNC_CHECK_SHOW = 101;
 const int TAG_FUNC_CHECK_TOGGLE = 102;
 
+const COLORREF TAG_COLOUR_GREY = 0xbebebe;
+const COLORREF TAG_COLOUR_PASS = 0x00be00;
+const COLORREF TAG_COLOUR_WARN = 0x0079f1;
+const COLORREF TAG_COLOUR_FAIL = 0x0000be;
+
 const int UPDATE_INTERVAL = 30;
 
 #define COMMAND_PREFIX ".vfpc"
@@ -28,7 +33,8 @@ Plugin::Plugin(void) :
 	EuroScope::CPlugIn(
 		EuroScope::COMPATIBILITY_CODE,
 		PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_AUTHORS, PLUGIN_LICENCE
-	)
+	),
+	checker(source)
 {
 	spdlog::info("plugin loaded");
 
@@ -87,11 +93,28 @@ bool Plugin::OnCompileCommand(const char *command) {
 			source.invalidate();
 			source.update();
 		} else if (!strcmp(token, "check")) {
+			std::string log;
+
 			if (!command) {
-				// check(GetSelectedFlightPlan())
+				auto fp = FlightPlanSelectASEL();
+				if (fp.IsValid()) {
+					spdlog::trace("manual check (by selection) for {}", fp.GetCallsign());
+
+					checker.check(fp, &log);
+					display_message(fp.GetCallsign(), log.c_str(), true);
+				} else {
+					display_message("", "No flight plan selected", true);
+				}
 			} else do {
 				command = next_token(command, token);
-				// check(GetFlightPlanByCallsign(token))
+
+				auto fp = FlightPlanSelect(token);
+				if (fp.IsValid()) {
+					spdlog::trace("manual check (by callsign) for {}", fp.GetCallsign());
+
+					checker.check(fp, &log);
+					display_message(fp.GetCallsign(), log.c_str(), true);
+				}
 			} while (command);
 		} else {
 			display_message("", "Invalid command; run '" COMMAND_PREFIX " help' for help", true);
@@ -103,7 +126,79 @@ bool Plugin::OnCompileCommand(const char *command) {
 	return true;
 }
 
-void Plugin::OnGetTagItem(EuroScope::CFlightPlan, EuroScope::CRadarTarget, int, int, char[16], int *, COLORREF *, double *) {}
+void Plugin::OnGetTagItem(
+	EuroScope::CFlightPlan flight_plan,
+	EuroScope::CRadarTarget _radar_target,
+	int item_code,
+	int _tag_data,
+	char item_value[16],
+	int *item_color,
+	COLORREF *item_rgb,
+	double *_item_font_size
+) {
+	if (item_code == TAG_ITEM_CHECK || item_code == TAG_ITEM_CHECK_SHORT) {
+		try {
+			if (!flight_plan.IsValid()) return;
+
+			Checker::Result result = checker.check(flight_plan);
+
+			*item_color = EuroScope::TAG_COLOR_RGB_DEFINED;
+
+			switch (result) {
+				case Checker::Result::Pending:
+					*item_rgb = TAG_COLOUR_GREY;
+					break;
+				
+				case Checker::Result::Success:
+					*item_rgb = TAG_COLOUR_PASS;
+					break;
+
+				case Checker::Result::Error:
+				case Checker::Result::Unknown:
+				case Checker::Result::Warning:
+				case Checker::Result::NonIfr:
+					*item_rgb = TAG_COLOUR_WARN;
+					break;
+
+				default:
+					*item_rgb = TAG_COLOUR_FAIL;
+					break;
+			}
+
+			bool abbr = item_code == TAG_ITEM_CHECK_SHORT;
+			const char *value = "*";
+
+			#define CASE(result, short, long) \
+				case Checker::Result::result: value = abbr ? short : long; break;
+
+			switch (result) {
+				CASE(Success,     "/", "OK!");
+				CASE(Warning,     "?", "OK?");
+				CASE(NonIfr,      "?", "VFR");
+				CASE(Pending,     ".", "...");
+				CASE(Error,       ".", "...");
+				CASE(Unknown,     "?", "DAT");
+				CASE(Syntax,      "!", "RTE");
+				CASE(SidUnknown,  "!", "SID");
+				CASE(CondBan,     "!", "BAN");
+				CASE(CondFail,    "!", "RST");
+				CASE(Destination, "!", "DST");
+				CASE(ExitPoint,   "!", "EPT");
+				CASE(LevelBlock,  "!", "LVL");
+				CASE(LevelParity, "!", "OER");
+				CASE(LevelSeries, "!", "LVL");
+				CASE(Route,       "!", "RTE");
+				CASE(CstrBan,     "!", "BAN");
+			}
+
+			#undef CASE
+
+			strcpy(item_value, value);
+		} catch (...) {
+			Plugin::report_exception("flight plan check");
+		}
+	}
+}
 
 void Plugin::OnFunctionCall(int, const char *, POINT, RECT) {}
 
