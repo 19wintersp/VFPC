@@ -14,8 +14,8 @@ LDFLAGS = \
 	/libpath:/opt/xwin/sdk/lib/ucrt/x86 /libpath:/opt/xwin/sdk/lib/um/x86
 LIBRARIES = $(wildcard lib/*) $(wildcard /opt/curl/lib/*)
 
-SOURCES = src/export.cpp src/plugin.cpp src/source.cpp
-HEADERS = src/jsonify.hpp src/plugin.hpp src/source.hpp
+SOURCES = src/check.cpp src/export.cpp src/plugin.cpp src/source.cpp
+HEADERS = src/check.hpp src/jsonify.hpp src/plugin.hpp src/source.hpp
 OBJECTS = $(patsubst src/%.cpp,out/%.obj,$(SOURCES))
 DEPENDENTS = $(HEADERS) out/config.h out/ca-bundle.h
 
