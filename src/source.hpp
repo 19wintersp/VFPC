@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 namespace api {
 	struct Time {
 		uint8_t hour, minute;
@@ -58,9 +60,31 @@ namespace api {
 	};
 }
 
+class Source {
+public:
+	enum CacheStatus {
+		Extant,
+		Pending,
+		Missing,
+		Error,
+	};
+
+	virtual api::DateTime datetime() {
+		return {};
+	}
+
+	virtual CacheStatus airport(const char *_icao) {
+		return CacheStatus::Missing;
+	}
+
+	virtual std::shared_ptr<const api::Sid> sid(const char *_icao, const char *_point) {
+		return nullptr;
+	}
+};
+
 // this class deals in multithreading, but its public APIs must only be called
 // from one thread to ensure safety. this is acceptable in the current system.
-class Source {
+class PluginSource : public virtual Source {
 private:
 	std::set<std::string> pending, missing, error;
 	std::map<std::string, std::map<std::string, std::shared_ptr<api::Sid>>> sids;
@@ -76,26 +100,33 @@ private:
 	void fetch_airport(std::promise<void> promise, const char *icao);
 
 public:
-	enum CacheStatus {
-		Extant,
-		Pending,
-		Missing,
-		Error,
-	};
-
-	Source();
-	~Source();
+	PluginSource();
+	~PluginSource();
 
 	void set(const char *source);
 	void invalidate();
 	void update();
 
-	api::DateTime datetime();
+	api::DateTime datetime() override;
 
 	// this creates a TOCTOU issue, but invalidate is called from the same thread
 	// as airport(...)/sid(...) so it's not an issue in practice. if necessary to
 	// change this, we'll create an "Airport" type which references its SID map
 	// and inherits lock_guard (?)
-	CacheStatus airport(const char *icao);
-	std::shared_ptr<const api::Sid> sid(const char *icao, const char *point);
+	Source::CacheStatus airport(const char *icao) override;
+	std::shared_ptr<const api::Sid> sid(const char *icao, const char *point) override;
+};
+
+class StaticSource : public virtual Source {
+private:
+	api::DateTime datetime_value;
+	std::map<std::string, std::map<std::string, std::shared_ptr<api::Sid>>> sids;
+
+public:
+	StaticSource(nlohmann::json &data, api::DateTime datetime);
+
+	api::DateTime datetime() override;
+
+	Source::CacheStatus airport(const char *icao) override;
+	std::shared_ptr<const api::Sid> sid(const char *icao, const char *point) override;
 };

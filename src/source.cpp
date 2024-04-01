@@ -82,14 +82,14 @@ static void load(
 	std::map<std::string, std::map<std::string, std::shared_ptr<api::Sid>>> &sids
 );
 
-Source::Source() :
+PluginSource::PluginSource() :
 	web_source(DEFAULT_SOURCE),
 	cache_version(0)
 {
 	update();
 }
 
-Source::~Source() {
+PluginSource::~PluginSource() {
 	// should cause any subsequently-finishing threads to fail
 	cache_version++;
 
@@ -102,7 +102,7 @@ Source::~Source() {
 	spdlog::trace("source destroyed");
 }
 
-void Source::set(const char *source) {
+void PluginSource::set(const char *source) {
 	if (!source) {
 		spdlog::trace("resetting source");
 
@@ -123,7 +123,7 @@ void Source::set(const char *source) {
 	}
 }
 
-void Source::invalidate() {
+void PluginSource::invalidate() {
 	cache_version++;
 
 	std::lock_guard<std::mutex> _lock(cache_lock);
@@ -134,19 +134,19 @@ void Source::invalidate() {
 	sids.clear();
 }
 
-void Source::update() {
+void PluginSource::update() {
 	spdlog::trace("update triggered");
 
 	std::promise<void> promise;
 	std::future<void> future = promise.get_future();
 
-	std::thread t(&Source::fetch_update, this, std::move(promise));
+	std::thread t(&PluginSource::fetch_update, this, std::move(promise));
 	t.detach();
 
 	future.wait();
 }
 
-void Source::fetch_update(std::promise<void> promise) {
+void PluginSource::fetch_update(std::promise<void> promise) {
 	std::string url = web_source; // copy
 	url.append("version");
 
@@ -176,12 +176,12 @@ void Source::fetch_update(std::promise<void> promise) {
 	spdlog::trace("update complete");
 }
 
-api::DateTime Source::datetime() {
+api::DateTime PluginSource::datetime() {
 	std::lock_guard<std::mutex> _lock(update_lock);
 	return datetime_value;
 }
 
-Source::CacheStatus Source::airport(const char *icao) {
+Source::CacheStatus PluginSource::airport(const char *icao) {
 	std::lock_guard<std::mutex> _lock(cache_lock);
 
 	if (  error.find(icao) !=   error.end()) return Source::CacheStatus::Error;
@@ -197,7 +197,7 @@ Source::CacheStatus Source::airport(const char *icao) {
 	std::promise<void> promise;
 	std::future<void> future = promise.get_future();
 
-	std::thread t(&Source::fetch_airport, this, std::move(promise), icao);
+	std::thread t(&PluginSource::fetch_airport, this, std::move(promise), icao);
 	t.detach();
 
 	future.wait();
@@ -205,7 +205,7 @@ Source::CacheStatus Source::airport(const char *icao) {
 	return Source::CacheStatus::Pending;
 }
 
-void Source::fetch_airport(std::promise<void> promise, const char *c_icao) {
+void PluginSource::fetch_airport(std::promise<void> promise, const char *c_icao) {
 	spdlog::trace("requesting airport {}", c_icao);
 
 	std::string url = web_source, icao = c_icao; // copy
@@ -216,7 +216,7 @@ void Source::fetch_airport(std::promise<void> promise, const char *c_icao) {
 
 	std::shared_lock<std::shared_mutex> _lock(this_lock);
 
-	// see Source::fetch_update
+	// see PluginSource::fetch_update
 	promise.set_value();
 
 	std::vector<api::Airport> airports;
@@ -257,7 +257,7 @@ void Source::fetch_airport(std::promise<void> promise, const char *c_icao) {
 	spdlog::trace("airport request complete");
 }
 
-std::shared_ptr<const api::Sid> Source::sid(const char *icao, const char *point) {
+std::shared_ptr<const api::Sid> PluginSource::sid(const char *icao, const char *point) {
 	std::lock_guard<std::mutex> _lock(cache_lock);
 
 	auto airport_it = sids.find(icao);
@@ -282,7 +282,7 @@ static size_t fetch_write(char *data, size_t size, size_t nmemb, void *user) {
 static json fetch(const char *url) {
 	spdlog::trace("fetch {}", url);
 
-	CURL *curl = curl_easy_init(); // TODO: should we re-use this handle?
+	CURL *curl = curl_easy_init();
 	if (!curl) throw std::string("failed to init libcurl easy");
 
 	if (!user_agent) {
@@ -327,6 +327,34 @@ static json fetch(const char *url) {
 
 	json out = json::parse(buffer);
 	return out;
+}
+
+StaticSource::StaticSource(json &data, api::DateTime datetime) :
+	datetime_value(datetime)
+{
+	auto airports = data.template get<std::vector<api::Airport>>();
+	load(airports, sids);
+}
+
+api::DateTime StaticSource::datetime() {
+	return datetime_value;
+}
+
+Source::CacheStatus StaticSource::airport(const char *icao) {
+	return sids.find(icao) == sids.end()
+		? Source::CacheStatus::Missing
+		: Source::CacheStatus::Extant;
+}
+
+std::shared_ptr<const api::Sid> StaticSource::sid(const char *icao, const char *point) {
+	auto airport_it = sids.find(icao);
+	if (airport_it == sids.end()) return nullptr;
+
+	auto &airport = std::get<1>(*airport_it);
+	auto sid_it = airport.find(point);
+	if (sid_it == airport.end()) return nullptr;
+
+	return std::get<1>(*sid_it);
 }
 
 static void load(

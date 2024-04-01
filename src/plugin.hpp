@@ -15,7 +15,7 @@ namespace EuroScope = EuroScopePlugIn;
 
 class Plugin : public EuroScope::CPlugIn {
 private:
-	Source source;
+	PluginSource source;
 	Checker checker;
 	int last_update = -1;
 
