@@ -9,6 +9,9 @@
 class   CRadarView ;
 class   CPlugInData ;
 
+class DllSpecEuroScope CRadarTarget;
+class DllSpecEuroScope CPlugIn;
+
 namespace EuroScopePlugIn
 {
 const   int     COMPATIBILITY_CODE                          = 16 ;
