@@ -28,6 +28,17 @@ make
 
 The plugin will be built and output to "out/vFPC.dll".
 
+Building the standalone program should be done on a normal host system, with the
+appropriate tooling and compilers installed. Copy a GSG "ICAO_Aircraft.txt" file
+(for example, from the UK Controller Pack) into the "res/" directory, and run:
+
+```bash
+make test
+```
+
+The program will be built and output to "out/vFPC". Running it will print help
+information.
+
 ## Using the plugin
 
 vFPC is largely compatible with VFPC, including the same tag item and function,
