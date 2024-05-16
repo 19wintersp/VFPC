@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef VFPC_STANDALONE
+#error Cannot compile plugin in standalone mode!
+#endif
+
 #include <memory>
 #include <mutex>
 #include <string>
