@@ -6,6 +6,7 @@
 
 #include <config.h>
 #include "plugin.hpp"
+#include "flightplan.hpp"
 
 const int TAG_ITEM_CHECK = 1;
 const int TAG_ITEM_CHECK_SHORT = 2;
@@ -101,7 +102,8 @@ bool Plugin::OnCompileCommand(const char *command) {
 				if (fp.IsValid()) {
 					spdlog::trace("manual check (by selection) for {}", fp.GetCallsign());
 
-					checker.check(fp, &log);
+					EuroScopeFlightPlan esfp(fp);
+					checker.check(esfp, &log);
 					display_message(fp.GetCallsign(), log.c_str(), true);
 				} else {
 					display_message("", "No flight plan selected", true);
@@ -113,7 +115,8 @@ bool Plugin::OnCompileCommand(const char *command) {
 				if (fp.IsValid()) {
 					spdlog::trace("manual check (by callsign) for {}", fp.GetCallsign());
 
-					checker.check(fp, &log);
+					EuroScopeFlightPlan esfp(fp);
+					checker.check(esfp, &log);
 					display_message(fp.GetCallsign(), log.c_str(), true);
 				}
 			} while (command);
@@ -141,23 +144,24 @@ void Plugin::OnGetTagItem(
 		try {
 			if (!flight_plan.IsValid()) return;
 
-			Checker::Result result = checker.check(flight_plan);
+			EuroScopeFlightPlan esfp(flight_plan);
+			Result result = checker.check(esfp);
 
 			*item_color = EuroScope::TAG_COLOR_RGB_DEFINED;
 
 			switch (result) {
-				case Checker::Result::Pending:
+				case Result::Pending:
 					*item_rgb = TAG_COLOUR_GREY;
 					break;
-				
-				case Checker::Result::Success:
+
+				case Result::Success:
 					*item_rgb = TAG_COLOUR_PASS;
 					break;
 
-				case Checker::Result::Error:
-				case Checker::Result::Unknown:
-				case Checker::Result::Warning:
-				case Checker::Result::NonIfr:
+				case Result::Error:
+				case Result::Unknown:
+				case Result::Warning:
+				case Result::NonIfr:
 					*item_rgb = TAG_COLOUR_WARN;
 					break;
 
@@ -170,7 +174,7 @@ void Plugin::OnGetTagItem(
 			const char *value = "*";
 
 			#define CASE(result, short, long) \
-				case Checker::Result::result: value = abbr ? short : long; break;
+				case Result::result: value = abbr ? short : long; break;
 
 			switch (result) {
 				CASE(Success,     "/", "OK!");
@@ -219,7 +223,8 @@ void Plugin::OnFunctionCall(
 				if (fp.IsValid()) {
 					std::string log;
 
-					checker.check(fp, &log);
+					EuroScopeFlightPlan esfp(fp);
+					checker.check(esfp, &log);
 					display_message(fp.GetCallsign(), log.c_str(), true);
 				} else {
 					spdlog::warn("tag function called without ASEL flight plan");

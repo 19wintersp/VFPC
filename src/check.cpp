@@ -12,22 +12,21 @@
 #include "check.hpp"
 #include "source.hpp"
 
-using Result = Checker::Result;
-
 Checker::Checker(Source &source) : source(source) {}
 
-Result Checker::check(FlightPlan &fp, std::string *a_log) {
-	log = a_log;
-
-	auto result = check_main(fp);
+Result Checker::check(FlightPlan &fp, std::string *log) {
+	Check check(fp, source);
+	auto result = check.check();
 
 	if (log) {
+		log->append(check.log);
+
 		switch (result) {
 			case Result::Pending:
 			case Result::Error:
 				log->append("pending");
 				break;
-			
+
 			case Result::Unknown:
 			case Result::Success:
 			case Result::Warning:
@@ -39,14 +38,14 @@ Result Checker::check(FlightPlan &fp, std::string *a_log) {
 				log->append("fail");
 				break;
 		}
-
-		log = nullptr;
 	}
 
 	return result;
 }
 
-#define LOG(msg) if (log) { log->append(msg); log->append("; "); }
+Check::Check(FlightPlan &fp, Source &source) : fp(fp), source(source) {}
+
+#define LOG(msg) { log.append(msg); log.append("; "); }
 
 void to_upper(std::string &s) {
 	std::transform(s.cbegin(), s.cend(), s.begin(), toupper);
@@ -59,15 +58,13 @@ const std::regex
 	regex_ats(R"#(^([A-Z]{2,5}\d[A-Z]?|[USK]?[A-Z][1-9]\d{0,2}[A-Z]?|NAT[A-Z]|DCT)$)#", std::regex::optimize),
 	regex_wpt(R"#(^([A-Z]{2,5}(\d{6})?|\d{2}(\d{2})?[SN]\d{3}(\d{2})?[WE])($|\/))#", std::regex::optimize);
 
-Result Checker::check_main(FlightPlan &fp) {
-	auto fpd = fp.GetFlightPlanData();
-
-	if (fpd.GetPlanType()[0] != 'I') {
+Result Check::check() {
+	if (!fp.is_ifr()) {
 		LOG("plan type is not IFR");
 		return Result::NonIfr;
 	}
 
-	const char *c_origin = fpd.GetOrigin(), *c_destination = fpd.GetDestination();
+	const char *c_origin = fp.departure(), *c_destination = fp.destination();
 	if (!c_origin || !c_origin[0] || !c_destination || !c_destination[0]) {
 		LOG("origin/destination is missing");
 		return Result::Syntax;
@@ -94,8 +91,8 @@ Result Checker::check_main(FlightPlan &fp) {
 			break;
 	}
 
-	const char *route_raw = fpd.GetRoute();
-	std::vector<std::string> route, points;
+	const char *route_raw = fp.route();
+	std::vector<std::string> route, points = fp.points();
 
 	while (route_raw) {
 		route_raw += strspn(route_raw, " ");
@@ -118,11 +115,7 @@ Result Checker::check_main(FlightPlan &fp) {
 		return Result::Syntax;
 	}
 
-	auto route_ext = fp.GetExtractedRoute();
-	for (int i = 0; i < route_ext.GetPointsNumber(); i++)
-		points.push_back(route_ext.GetPointName(i));
-
-	std::string sid = fpd.GetSidName(), sid_suffix, sid_point;
+	std::string sid = fp.sid_name(), sid_suffix, sid_point;
 	to_upper(sid);
 
 	if (!sid.empty()) {
@@ -217,7 +210,7 @@ Result Checker::check_main(FlightPlan &fp) {
 		return Result::SidUnknown;
 	}
 
-	return check_constraints(*sid_data, fpd, sid_point.c_str(), sid_suffix.c_str(), points, bare_route);
+	return check_constraints(*sid_data, sid_point.c_str(), sid_suffix.c_str(), points, bare_route);
 }
 
 struct Candidate {
@@ -230,15 +223,14 @@ struct Candidate {
 	Candidate(const api::Constraint &constraint) : constraint(constraint) {}
 };
 
-Result Checker::check_constraints(
+Result Check::check_constraints(
 	const api::Sid &sid_data,
-	FlightPlanData &fpd,
 	const char *sid_point,
 	const char *sid_suffix,
 	const std::vector<std::string> &points,
 	const std::vector<std::string> &route
 ) {
-	Result sr_result = check_restrictions(sid_data.restrictions, fpd, sid_suffix);
+	Result sr_result = check_restrictions(sid_data.restrictions, sid_suffix);
 
 	// this is messy; constraints are checked in turn, and the one with the most
 	// passes (ordered semantically) is selected as the canonical failure. since
@@ -248,24 +240,22 @@ Result Checker::check_constraints(
 	for (const auto &constraint : sid_data.constraints)
 		candidates.push_back(std::move(Candidate(constraint)));
 
-	std::string *global_log = log;
-
 	#define CHECK(check) \
 		candidate.result = check; \
 		if (candidate.result == Result::Success) candidate.passes++; \
-		else continue;
+		else { log.swap(candidate.log); continue; }
 
 	for (auto &candidate : candidates) {
-		if (log) log = &candidate.log;
+		log.swap(candidate.log);
 
-		CHECK(check_destination(candidate.constraint, fpd.GetDestination()));
+		CHECK(check_destination(candidate.constraint, fp.destination()));
 		CHECK(check_exit_point(candidate.constraint, points));
 
 		// the following checks most likely should not be used for ranking
 
 		Result sr_result_copy = sr_result;
 		candidate.result = check_restrictions(
-			candidate.constraint.restrictions, fpd, sid_suffix, sr_result_copy
+			candidate.constraint.restrictions, sid_suffix, sr_result_copy
 		);
 
 		if (candidate.result != Result::Success) {
@@ -281,13 +271,13 @@ Result Checker::check_constraints(
 
 		candidate.passes++;
 
-		CHECK(check_min_max(candidate.constraint, fpd.GetFinalAltitude()));
-		CHECK(check_direction(candidate.constraint, fpd.GetFinalAltitude()));
+		CHECK(check_min_max(candidate.constraint, fp.cruise_level()));
+		CHECK(check_direction(candidate.constraint, fp.cruise_level()));
 		CHECK(check_route(candidate.constraint, route, sid_point));
 		CHECK(check_alerts(candidate.constraint));
 
-		log = global_log;
-		if (log) log->append(candidate.log);
+		log.swap(candidate.log);
+		log.append(candidate.log);
 
 		LOG("candidate constraint passed");
 		return Result::Success;
@@ -295,21 +285,17 @@ Result Checker::check_constraints(
 
 	#undef CHECK
 
-	log = global_log;
-
 	const Candidate &best = *std::max_element(
 		candidates.cbegin(), candidates.cend(),
 		[](const auto &a, const auto &b) { return a.passes < b.passes; }
 	);
 
-	if (log) {
-		log->append("best candidate for SID does not match: ");
-		log->append(best.log);
-	}
+	log.append("best candidate for SID: ");
+	log.append(best.log);
 	return best.result;
 }
 
-Result Checker::check_destination(const api::Constraint &constraint, const char *dest) {
+Result Check::check_destination(const api::Constraint &constraint, const char *dest) {
 	auto predicate = [dest](const std::string &slug) {
 		return !strncmp(slug.c_str(), dest, slug.length());
 	};
@@ -333,7 +319,7 @@ Result Checker::check_destination(const api::Constraint &constraint, const char 
 	return Result::Success;
 }
 
-Result Checker::check_exit_point(const api::Constraint &constraint, const std::vector<std::string> &points) {
+Result Check::check_exit_point(const api::Constraint &constraint, const std::vector<std::string> &points) {
 	auto predicate = [points](const std::string &exit_point) {
 		return std::find(points.begin(), points.end(), exit_point) != points.end();
 	};
@@ -357,7 +343,7 @@ Result Checker::check_exit_point(const api::Constraint &constraint, const std::v
 	return Result::Success;
 }
 
-Result Checker::check_min_max(const api::Constraint &constraint, int rfl) {
+Result Check::check_min_max(const api::Constraint &constraint, int rfl) {
 	rfl /= 100;
 
 	if (constraint.min && *constraint.min > rfl) {
@@ -375,7 +361,7 @@ Result Checker::check_min_max(const api::Constraint &constraint, int rfl) {
 
 const int RVSM_START = 41;
 
-Result Checker::check_direction(const api::Constraint &constraint, int rfl) {
+Result Check::check_direction(const api::Constraint &constraint, int rfl) {
 	if (rfl % 1000) {
 		LOG("requested level not IFR");
 		return Result::LevelSeries;
@@ -400,7 +386,7 @@ Result Checker::check_direction(const api::Constraint &constraint, int rfl) {
 	return Result::Success;
 }
 
-Result Checker::check_route(
+Result Check::check_route(
 	const api::Constraint &constraint,
 	const std::vector<std::string> &route,
 	const char *sid_point
@@ -455,7 +441,7 @@ Result Checker::check_route(
 	return Result::Success;
 }
 
-Result Checker::check_alerts(const api::Constraint &constraint) {
+Result Check::check_alerts(const api::Constraint &constraint) {
 	Result result = Result::Success;
 
 	for (const api::Alert &alert : constraint.alerts) {
@@ -485,18 +471,16 @@ Result Checker::check_alerts(const api::Constraint &constraint) {
 	return result;
 }
 
-Result Checker::check_restrictions(
+Result Check::check_restrictions(
 	const std::vector<api::Restriction> &restrictions,
-	FlightPlanData &fpd,
 	const char *sid_suffix
 ) {
 	Result unused; // for the "sidlevel" override; not used for SID-wide restrs
-	return check_restrictions(restrictions, fpd, sid_suffix, unused);
+	return check_restrictions(restrictions, sid_suffix, unused);
 }
 
-Result Checker::check_restrictions(
+Result Check::check_restrictions(
 	const std::vector<api::Restriction> &restrictions,
-	FlightPlanData &fpd,
 	const char *sid_suffix,
 	Result &sr_result
 ) {
@@ -561,11 +545,11 @@ Result Checker::check_restrictions(
 			if (
 				std::find(
 					restriction.types.begin(), restriction.types.end(),
-					std::string(1, fpd.GetEngineType())
+					std::string(1, fp.engine_type())
 				) == restriction.types.end() &&
 				std::find(
 					restriction.types.begin(), restriction.types.end(),
-					std::string(1, fpd.GetAircraftType())
+					std::string(1, fp.aircraft_type())
 				) == restriction.types.end()
 			) continue;
 		}
@@ -587,7 +571,7 @@ Result Checker::check_restrictions(
 	return Result::CondFail;
 }
 
-void Checker::log_alternatives(const std::vector<api::Restriction> &restrictions) {
+void Check::log_alternatives(const std::vector<api::Restriction> &restrictions) {
 	std::string alternatives("alternatives exist (");
 	auto length = alternatives.length();
 
