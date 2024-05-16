@@ -8,15 +8,21 @@
 #include <thread>
 #include <vector>
 
-#include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
+
+#ifndef VFPC_STANDALONE
+#include <curl/curl.h>
+#endif
 
 #include <ca-bundle.h>
 #include <config.h>
 #include "jsonify.hpp"
-#include "plugin.hpp"
 #include "source.hpp"
+
+#ifndef VFPC_STANDALONE
+#include "plugin.hpp"
+#endif
 
 #define DEFAULT_SOURCE "https://vfpc.tomjmills.co.uk/"
 
@@ -82,6 +88,7 @@ static void load(
 	std::map<std::string, std::map<std::string, std::shared_ptr<api::Sid>>> &sids
 );
 
+#ifndef VFPC_STANDALONE
 PluginSource::PluginSource() :
 	web_source(DEFAULT_SOURCE),
 	cache_version(0)
@@ -328,6 +335,7 @@ static json fetch(const char *url) {
 	json out = json::parse(buffer);
 	return out;
 }
+#endif // ifndef VFPC_STANDALONE
 
 StaticSource::StaticSource(json &data, api::DateTime datetime) :
 	datetime_value(datetime)

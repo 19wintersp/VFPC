@@ -82,6 +82,7 @@ public:
 	}
 };
 
+#ifndef VFPC_STANDALONE
 // this class deals in multithreading, but its public APIs must only be called
 // from one thread to ensure safety. this is acceptable in the current system.
 class PluginSource : public virtual Source {
@@ -116,6 +117,7 @@ public:
 	Source::CacheStatus airport(const char *icao) override;
 	std::shared_ptr<const api::Sid> sid(const char *icao, const char *point) override;
 };
+#endif // ifndef VFPC_STANDALONE
 
 class StaticSource : public virtual Source {
 private:
