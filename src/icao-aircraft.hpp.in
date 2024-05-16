@@ -1,0 +1,6 @@
+struct IcaoAircraft {
+	const char *icao;
+	char wc, at, en, et;
+};
+
+// inline IcaoAircraft ICAO_AIRCRAFT[] = { ... };
